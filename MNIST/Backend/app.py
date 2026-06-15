@@ -5,10 +5,21 @@ import torchvision.transforms as transforms
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
+from fastapi.responses import FileResponse
 import io
 import os
 
 app = FastAPI(title="MNIST Digit Classifier")
+FRONTEND_PATH = os.path.join(
+    os.path.dirname(__file__),
+    "..",
+    "Frontend",
+    "index.html"
+)
+
+@app.get("/")
+def home():
+    return FileResponse(FRONTEND_PATH)
 
 app.add_middleware(
     CORSMiddleware,
