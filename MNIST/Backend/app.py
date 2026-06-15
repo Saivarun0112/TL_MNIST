@@ -13,7 +13,7 @@ app = FastAPI(title="MNIST Digit Classifier")
 FRONTEND_PATH = os.path.join(
     os.path.dirname(__file__),
     "..",
-    "Frontend",
+    "frontend",
     "index.html"
 )
 
