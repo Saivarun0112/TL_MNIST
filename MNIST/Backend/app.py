@@ -32,7 +32,6 @@ app.add_middleware(
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Path to model saved by the notebook
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "ML", "resnet18_mnist.pth")
 
 model = models.resnet18(weights=None)
@@ -47,29 +46,73 @@ else:
 model.to(device)
 model.eval()
 
-# FIX 1: Use ImageNet normalization stats (correct for ResNet18)
+# Use MNIST normalization stats — matches what the model was trained on
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
-    transforms.Grayscale(num_output_channels=3),  # Convert grayscale → 3-channel for ResNet
+    transforms.Grayscale(num_output_channels=3),
     transforms.ToTensor(),
     transforms.Normalize(
-        mean=[0.485, 0.456, 0.406],   # ImageNet mean — correct for ResNet18
-        std=[0.229, 0.224, 0.225]     # ImageNet std  — correct for ResNet18
+        mean=[0.1307, 0.1307, 0.1307],
+        std=[0.3081, 0.3081, 0.3081]
     )
 ])
+
+def preprocess_image(img: Image.Image) -> Image.Image:
+    """
+    Robustly preprocess any uploaded digit image to match MNIST format:
+    - White digit on black background
+    - Digit tightly cropped and centered
+    """
+    # Convert to grayscale
+    img = img.convert("L")
+    arr = np.array(img)
+
+    # --- Step 1: Crop to the bounding box of the digit ---
+    # Threshold to find digit pixels (works for both dark-on-light and light-on-dark)
+    # Determine if digit is dark-on-light or light-on-dark
+    if arr.mean() > 127:
+        # Light background: digit pixels are DARK → invert so digit becomes white
+        arr = 255 - arr
+
+    # Now digit is bright (white) on dark (black) background
+    # Threshold to find digit region
+    binary = arr > 50
+    rows = np.any(binary, axis=1)
+    cols = np.any(binary, axis=0)
+
+    if rows.any() and cols.any():
+        rmin, rmax = np.where(rows)[0][[0, -1]]
+        cmin, cmax = np.where(cols)[0][[0, -1]]
+
+        # Add padding around digit
+        pad = 20
+        rmin = max(0, rmin - pad)
+        rmax = min(arr.shape[0], rmax + pad)
+        cmin = max(0, cmin - pad)
+        cmax = min(arr.shape[1], cmax + pad)
+
+        arr = arr[rmin:rmax, cmin:cmax]
+
+    # --- Step 2: Make square by padding ---
+    h, w = arr.shape
+    size = max(h, w)
+    square = np.zeros((size, size), dtype=np.uint8)
+    y_offset = (size - h) // 2
+    x_offset = (size - w) // 2
+    square[y_offset:y_offset+h, x_offset:x_offset+w] = arr
+
+    # Convert back to PIL
+    img = Image.fromarray(square)
+    return img
+
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     contents = await file.read()
+    img = Image.open(io.BytesIO(contents))
 
-    # Convert to grayscale
-    img = Image.open(io.BytesIO(contents)).convert("L")
-
-    # FIX 2: Auto-invert if image has a light background (black digit on white paper).
-    # MNIST trains on WHITE digit on BLACK background, so we must match that convention.
-    arr = np.array(img)
-    if arr.mean() > 127:
-        img = ImageOps.invert(img)
+    # Preprocess: normalize to MNIST-style (white digit, black bg, cropped)
+    img = preprocess_image(img)
 
     input_tensor = transform(img).unsqueeze(0).to(device)
 
@@ -84,6 +127,7 @@ async def predict(file: UploadFile = File(...)):
         "confidence": round(confidence, 2),
         "all_probs": [round(p * 100, 2) for p in probs[0].tolist()]
     }
+
 
 @app.get("/health")
 def health_check():
