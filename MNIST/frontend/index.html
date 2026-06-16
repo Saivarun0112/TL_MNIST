@@ -1,411 +1,320 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MNIST Digit Classifier</title>
-<style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MNIST Digit Classifier</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 25%, #a18cd1 50%, #84fab0 75%, #8fd3f4 100%);
-        background-size: 400% 400%;
-        animation: gradientShift 15s ease infinite;
-        padding: 20px;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f5f5f3;
+      color: #1a1a18;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 3rem 1rem;
     }
 
-    @keyframes gradientShift {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
+    @media (prefers-color-scheme: dark) {
+      body { background: #1a1a18; color: #f0ede6; }
+      .card { background: #232320; border-color: rgba(255,255,255,0.1); }
+      .secondary-bg { background: #2c2c2a; }
+      .muted { color: #888780; }
+      .hint { color: #5f5e5a; }
+      .bar-bg { background: #3a3a38; }
+      .bar-border { border-color: rgba(255,255,255,0.15); }
+      button { border-color: rgba(255,255,255,0.2); color: #d3d1c7; }
+      button:hover { background: #2c2c2a; }
+      #drop-zone { border-color: rgba(255,255,255,0.2); }
+      #error-box { background: #3a1f1f; border-color: rgba(227,75,74,0.4); color: #f09595; }
+    }
+
+    @media (prefers-color-scheme: light) {
+      .card { background: #fff; border-color: rgba(0,0,0,0.12); }
+      .secondary-bg { background: #f1efe8; }
+      .muted { color: #5f5e5a; }
+      .hint { color: #888780; }
+      .bar-bg { background: #e0ded6; }
+      .bar-border { border-color: rgba(0,0,0,0.15); }
+      button { border-color: rgba(0,0,0,0.2); color: #444; }
+      button:hover { background: #f1efe8; }
+      #drop-zone { border-color: rgba(0,0,0,0.2); }
+      #error-box { background: #fcebeb; border-color: rgba(162,45,45,0.3); color: #a32d2d; }
+    }
+
+    .container { width: 100%; max-width: 640px; }
+
+    h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.4rem; }
+    .subtitle { font-size: 14px; margin-bottom: 2rem; }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start; }
+
+    #drop-zone {
+      border: 1px dashed;
+      border-radius: 12px;
+      padding: 2rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      min-height: 180px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.15s;
+    }
+    #drop-zone:hover { opacity: 0.85; }
+    #drop-zone i { font-size: 28px; }
+
+    #preview-wrap { display: none; margin-top: 0; }
+    #preview {
+      width: 100%;
+      border-radius: 8px;
+      border: 0.5px solid rgba(0,0,0,0.12);
+      display: block;
     }
 
     .card {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
-        border-radius: 22px;
-        padding: 35px;
-        max-width: 440px;
-        width: 100%;
-        box-shadow: 0 15px 50px rgba(0,0,0,0.25);
-        text-align: center;
-        border: 3px solid transparent;
-        background-image: linear-gradient(white, white), linear-gradient(135deg, #ff6a88, #a18cd1, #84fab0, #ffd86f);
-        background-origin: border-box;
-        background-clip: padding-box, border-box;
+      border: 0.5px solid;
+      border-radius: 12px;
+      padding: 1.25rem 1rem;
+      overflow: hidden;
     }
 
-    h1 {
-        font-size: 26px;
-        background: linear-gradient(135deg, #ff6a88, #845ec2, #00c2a8);
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-        margin-bottom: 6px;
-        font-weight: 800;
+    .secondary-bg {
+      border-radius: 12px;
+      padding: 1.5rem 1rem;
+      min-height: 180px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      text-align: center;
+    }
+    .secondary-bg i { font-size: 28px; }
+
+    #result-loading { display: none; }
+    #result-box { display: none; }
+    #error-box {
+      display: none;
+      border: 0.5px solid;
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      font-size: 13px;
+      margin-top: 0;
     }
 
-    .subtitle {
-        color: #999;
-        font-size: 13px;
-        margin-bottom: 25px;
-        font-weight: 500;
-    }
+    .digit-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 1rem; }
+    #digit-display { font-size: 48px; font-weight: 500; line-height: 1; }
+    #conf-label { font-size: 20px; font-weight: 500; }
+    .conf-sub { font-size: 12px; }
 
-    .drop-zone {
-        border: 3px dashed #ffb6c1;
-        border-radius: 14px;
-        padding: 32px 15px;
-        cursor: pointer;
-        transition: all 0.25s;
-        background: linear-gradient(135deg, #fff0f5, #f0f7ff);
-    }
-
-    .drop-zone:hover {
-        border-color: #845ec2;
-        transform: scale(1.02);
-        box-shadow: 0 5px 20px rgba(132, 94, 194, 0.2);
-    }
-
-    .drop-zone.dragover {
-        border-color: #00c2a8;
-        background: linear-gradient(135deg, #e0fff4, #e6f9ff);
-        transform: scale(1.03);
-    }
-
-    .drop-zone p {
-        color: #845ec2;
-        font-size: 15px;
-        font-weight: 700;
-    }
-
-    .drop-zone small {
-        color: #b5a8d4;
-        display: block;
-        margin-top: 6px;
-        font-weight: 500;
-    }
-
-    #fileInput { display: none; }
-
-    .preview-wrap {
-        margin-top: 18px;
-        display: none;
-        animation: popIn 0.3s ease;
-    }
-
-    @keyframes popIn {
-        from { opacity: 0; transform: scale(0.85); }
-        to { opacity: 1; transform: scale(1); }
-    }
-
-    #preview {
-        max-width: 180px;
-        max-height: 180px;
-        border-radius: 12px;
-        border: 4px solid #ffd86f;
-        background: #000;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.15);
-    }
-
-    .btn {
-        margin-top: 20px;
-        width: 100%;
-        padding: 14px;
-        border: none;
-        border-radius: 12px;
-        background: linear-gradient(135deg, #ff6a88, #845ec2, #00c2a8);
-        background-size: 200% 200%;
-        color: white;
-        font-size: 17px;
-        font-weight: 700;
-        cursor: pointer;
-        transition: all 0.3s;
-        box-shadow: 0 5px 15px rgba(132, 94, 194, 0.35);
-        letter-spacing: 0.5px;
-    }
-
-    .btn:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-        box-shadow: none;
-    }
-
-    .btn:hover:not(:disabled) {
-        background-position: 100% 0;
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(132, 94, 194, 0.45);
-    }
-
-    .btn:active:not(:disabled) {
-        transform: translateY(0);
-    }
-
-    .spinner {
-        display: none;
-        margin: 18px auto 0;
-        width: 36px;
-        height: 36px;
-        border: 4px solid #ffe0ec;
-        border-top: 4px solid #845ec2;
-        border-right: 4px solid #00c2a8;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-    }
+    .bar-row { display: flex; align-items: center; gap: 6px; }
+    .bar-label { font-size: 12px; min-width: 10px; }
+    .bar-track { flex: 1; border-radius: 3px; height: 8px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+    .bar-pct { font-size: 11px; min-width: 38px; text-align: right; }
+    #bars { display: flex; flex-direction: column; gap: 5px; }
 
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    .result {
-        margin-top: 22px;
-        display: none;
-        animation: popIn 0.4s ease;
+    .spinner {
+      width: 24px; height: 24px;
+      border: 2px solid rgba(0,0,0,0.15);
+      border-top-color: #555;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @media (prefers-color-scheme: dark) {
+      .spinner { border-color: rgba(255,255,255,0.15); border-top-color: #d3d1c7; }
     }
 
-    .digit-display {
-        font-size: 68px;
-        font-weight: 900;
-        background: linear-gradient(135deg, #ff6a88, #845ec2, #00c2a8, #ffd86f);
-        background-size: 300% 300%;
-        animation: gradientShift 6s ease infinite;
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-        line-height: 1;
-        text-shadow: 0 0 30px rgba(132, 94, 194, 0.15);
+    button {
+      width: 100%;
+      padding: 10px;
+      font-size: 15px;
+      font-weight: 500;
+      background: transparent;
+      border: 0.5px solid;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 0.1s;
     }
+    button:disabled { opacity: 0.4; cursor: default; }
+    button:active:not(:disabled) { transform: scale(0.98); }
 
-    .confidence {
-        color: #888;
-        font-size: 14px;
-        margin-top: 6px;
-        margin-bottom: 20px;
-        font-weight: 600;
-    }
+    #predict-btn { margin-top: 1.5rem; }
 
-    .confidence span {
-        background: linear-gradient(135deg, #00c2a8, #845ec2);
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-        font-weight: 800;
-    }
+    .success-color { color: #0f6e56; }
+    @media (prefers-color-scheme: dark) { .success-color { color: #5dcaa5; } }
 
-    .bar-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin: 6px 0;
-        font-size: 12px;
-        text-align: left;
+    @media (max-width: 480px) {
+      .grid { grid-template-columns: 1fr; }
     }
-
-    .bar-label {
-        width: 18px;
-        height: 18px;
-        line-height: 18px;
-        border-radius: 50%;
-        font-weight: 800;
-        color: white;
-        font-size: 11px;
-        text-align: center;
-        background: linear-gradient(135deg, #c9d6ff, #b8c0ff);
-    }
-
-    .bar-track {
-        flex: 1;
-        background: #f0f0f5;
-        border-radius: 8px;
-        overflow: hidden;
-        height: 14px;
-        box-shadow: inset 0 1px 3px rgba(0,0,0,0.08);
-    }
-
-    .bar-fill {
-        height: 100%;
-        background: linear-gradient(90deg, #a18cd1, #c9d6ff);
-        border-radius: 8px;
-        transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-        width: 0%;
-    }
-
-    .bar-fill.top {
-        background: linear-gradient(90deg, #00c2a8, #43cea2, #ffd86f);
-    }
-
-    .bar-row.top-row .bar-label {
-        background: linear-gradient(135deg, #ff6a88, #ffd86f);
-        box-shadow: 0 2px 8px rgba(255, 106, 136, 0.4);
-    }
-
-    .bar-pct {
-        width: 45px;
-        text-align: right;
-        color: #999;
-        font-weight: 700;
-    }
-
-    .error {
-        margin-top: 15px;
-        color: #ff4d6d;
-        font-size: 13px;
-        display: none;
-        font-weight: 600;
-        background: #ffe5ec;
-        padding: 10px;
-        border-radius: 10px;
-    }
-</style>
+  </style>
 </head>
 <body>
+  <div class="container">
+    <h1>MNIST digit classifier</h1>
+    <p class="subtitle muted">Upload a handwritten digit image to classify it</p>
 
-<div class="card">
-    <h1>🔢 MNIST Digit Classifier</h1>
-    <p class="subtitle">✨ Transfer Learning · ResNet18 ✨</p>
+    <div class="grid">
+      <div>
+        <div
+          id="drop-zone"
+          class="secondary-bg"
+          onclick="document.getElementById('file-input').click()"
+          ondragover="event.preventDefault(); this.classList.add('drag-over')"
+          ondragleave="this.classList.remove('drag-over')"
+          ondrop="handleDrop(event)"
+          role="button"
+          tabindex="0"
+          aria-label="Upload digit image"
+          onkeydown="if(event.key==='Enter')this.click()"
+        >
+          <i class="ti ti-upload muted" aria-hidden="true"></i>
+          <span style="font-size: 14px;" class="muted">Click or drag an image here</span>
+          <span style="font-size: 12px;" class="hint">PNG, JPG, BMP</span>
+        </div>
+        <input type="file" id="file-input" accept="image/*" style="display:none;" onchange="handleFile(this.files[0])">
 
-    <div class="drop-zone" id="dropZone">
-        <p>📤 Click or Drag image here</p>
-        <small>PNG / JPG of a handwritten digit</small>
+        <div id="preview-wrap">
+          <img id="preview" alt="Preview of uploaded digit">
+          <button onclick="reset()" style="font-size:13px; margin-top: 8px;">
+            <i class="ti ti-refresh" aria-hidden="true"></i> Clear
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <div id="result-idle" class="secondary-bg">
+          <i class="ti ti-chart-bar hint" aria-hidden="true"></i>
+          <span style="font-size:13px;" class="hint">Results will appear here</span>
+        </div>
+
+        <div id="result-loading" class="secondary-bg">
+          <div class="spinner" role="status" aria-label="Classifying"></div>
+          <span style="font-size:13px;" class="muted">Classifying…</span>
+        </div>
+
+        <div id="result-box" class="card" aria-live="polite">
+          <div class="digit-row">
+            <span id="digit-display"></span>
+            <div>
+              <div id="conf-label"></div>
+              <div class="conf-sub muted">confidence</div>
+            </div>
+          </div>
+          <div id="bars"></div>
+        </div>
+
+        <div id="error-box" role="alert">
+          <i class="ti ti-alert-circle" aria-hidden="true"></i>
+          <span id="error-msg"></span>
+        </div>
+      </div>
     </div>
-    <input type="file" id="fileInput" accept="image/*">
 
-    <div class="preview-wrap" id="previewWrap">
-        <img id="preview" alt="preview">
-    </div>
+    <button id="predict-btn" onclick="predict()" disabled>
+      Predict digit
+    </button>
+  </div>
 
-    <button class="btn" id="predictBtn" disabled>🚀 Predict Digit</button>
-
-    <div class="spinner" id="spinner"></div>
-
-    <div class="result" id="result">
-        <div class="digit-display" id="digitDisplay">-</div>
-        <div class="confidence" id="confidenceText"></div>
-        <div id="probBars"></div>
-    </div>
-
-    <div class="error" id="errorBox"></div>
-</div>
-
-<script>
-    // 👇 change this if your backend runs elsewhere
-    const API_URL = "/predict";
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.getElementById('fileInput');
-    const previewWrap = document.getElementById('previewWrap');
-    const preview = document.getElementById('preview');
-    const predictBtn = document.getElementById('predictBtn');
-    const spinner = document.getElementById('spinner');
-    const result = document.getElementById('result');
-    const digitDisplay = document.getElementById('digitDisplay');
-    const confidenceText = document.getElementById('confidenceText');
-    const probBars = document.getElementById('probBars');
-    const errorBox = document.getElementById('errorBox');
-
+  <script>
     let selectedFile = null;
 
-    dropZone.addEventListener('click', () => fileInput.click());
-
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropZone.classList.add('dragover');
-    });
-
-    dropZone.addEventListener('dragleave', () => {
-        dropZone.classList.remove('dragover');
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('dragover');
-        if (e.dataTransfer.files.length) {
-            handleFile(e.dataTransfer.files[0]);
-        }
-    });
-
-    fileInput.addEventListener('change', () => {
-        if (fileInput.files.length) {
-            handleFile(fileInput.files[0]);
-        }
-    });
-
     function handleFile(file) {
-        if (!file.type.startsWith('image/')) {
-            showError("⚠️ Please select a valid image file.");
-            return;
+      if (!file) return;
+      selectedFile = file;
+      const reader = new FileReader();
+      reader.onload = e => {
+        document.getElementById('preview').src = e.target.result;
+        document.getElementById('preview-wrap').style.display = 'block';
+        document.getElementById('drop-zone').style.display = 'none';
+        document.getElementById('predict-btn').disabled = false;
+        showIdle();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function handleDrop(e) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) handleFile(file);
+    }
+
+    function reset() {
+      selectedFile = null;
+      document.getElementById('preview-wrap').style.display = 'none';
+      document.getElementById('drop-zone').style.display = 'flex';
+      document.getElementById('predict-btn').disabled = true;
+      document.getElementById('file-input').value = '';
+      showIdle();
+    }
+
+    function showOnly(id) {
+      ['result-idle', 'result-loading', 'result-box', 'error-box']
+        .forEach(x => document.getElementById(x).style.display = 'none');
+      if (id) document.getElementById(id).style.display = ['result-idle','result-loading'].includes(id) ? 'flex' : 'block';
+    }
+
+    function showIdle() { showOnly('result-idle'); }
+
+    async function predict() {
+      if (!selectedFile) return;
+      showOnly('result-loading');
+      document.getElementById('predict-btn').disabled = true;
+
+      const form = new FormData();
+      form.append('file', selectedFile);
+
+      try {
+        const res = await fetch('/predict', { method: 'POST', body: form });
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(`Server error ${res.status}: ${txt.slice(0, 120)}`);
         }
-        selectedFile = file;
-        preview.src = URL.createObjectURL(file);
-        previewWrap.style.display = 'block';
-        predictBtn.disabled = false;
-        result.style.display = 'none';
-        errorBox.style.display = 'none';
+        const data = await res.json();
+        renderResult(data);
+      } catch (err) {
+        showOnly('error-box');
+        document.getElementById('error-msg').textContent = err.message || 'Could not connect to /predict';
+      } finally {
+        document.getElementById('predict-btn').disabled = false;
+      }
     }
 
-    predictBtn.addEventListener('click', async () => {
-        if (!selectedFile) return;
+    function renderResult(data) {
+      document.getElementById('digit-display').textContent = data.predicted_digit;
+      document.getElementById('conf-label').textContent = data.confidence.toFixed(1) + '%';
 
-        predictBtn.disabled = true;
-        spinner.style.display = 'block';
-        result.style.display = 'none';
-        errorBox.style.display = 'none';
+      const probs = data.all_probs;
+      const max = Math.max(...probs);
+      const bars = document.getElementById('bars');
+      bars.innerHTML = '';
 
-        const formData = new FormData();
-        formData.append("file", selectedFile);
+      probs.forEach((p, i) => {
+        const isTop = i === data.predicted_digit;
+        const pct = max > 0 ? (p / max) * 100 : 0;
+        const row = document.createElement('div');
+        row.className = 'bar-row';
+        row.innerHTML = `
+          <span class="bar-label muted">${i}</span>
+          <div class="bar-track bar-bg">
+            <div class="bar-fill" style="width:${pct.toFixed(1)}%; background:${isTop ? '#1D9E75' : 'rgba(128,128,128,0.35)'}"></div>
+          </div>
+          <span class="bar-pct ${isTop ? 'success-color' : 'hint'}">${p.toFixed(1)}%</span>`;
+        bars.appendChild(row);
+      });
 
-        try {
-            const res = await fetch(API_URL, {
-                method: "POST",
-                body: formData
-            });
-
-            if (!res.ok) throw new Error(`Server error: ${res.status}`);
-
-            const data = await res.json();
-            showResult(data);
-
-        } catch (err) {
-            showError("⚠️ " + err.message + " — Is the backend running?");
-        } finally {
-            spinner.style.display = 'none';
-            predictBtn.disabled = false;
-        }
-    });
-
-    function showResult(data) {
-        digitDisplay.textContent = data.predicted_digit;
-        confidenceText.innerHTML = `Confidence: <span>${data.confidence}%</span>`;
-
-        const maxProb = Math.max(...data.all_probs);
-
-        let html = '';
-        data.all_probs.forEach((p, i) => {
-            const isTop = p === maxProb;
-            html += `
-                <div class="bar-row ${isTop ? 'top-row' : ''}">
-                    <div class="bar-label">${i}</div>
-                    <div class="bar-track"><div class="bar-fill ${isTop ? 'top' : ''}" style="width:0%" data-width="${p}"></div></div>
-                    <div class="bar-pct">${p}%</div>
-                </div>`;
-        });
-        probBars.innerHTML = html;
-        result.style.display = 'block';
-
-        // Animate bars after render
-        requestAnimationFrame(() => {
-            document.querySelectorAll('.bar-fill').forEach(bar => {
-                bar.style.width = bar.dataset.width + '%';
-            });
-        });
+      showOnly('result-box');
     }
-
-    function showError(msg) {
-        errorBox.textContent = msg;
-        errorBox.style.display = 'block';
-    }
-</script>
-
+  </script>
 </body>
 </html>
